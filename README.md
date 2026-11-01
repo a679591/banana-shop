@@ -1,6 +1,7 @@
 # Baked by Erin 🧁
 
-An EmDash CMS shop on Cloudflare Workers for **bakedbyerin.com** — customers order
+An EmDash CMS shop on Cloudflare Workers, running at **shop.bakedbyerin.com**
+while the current site stays on the `bakedbyerin` Pages project (bakedbyerin.com) — customers order
 online and pay cash on pickup. Based on the `banana-shop` EmDash template.
 
 ## Stack
@@ -58,7 +59,7 @@ Erin's menu in the admin, or edit `seed/seed.json` before seeding.
 ```bash
 npx wrangler secret put EMDASH_ENCRYPTION_KEY   # value: output of `npx emdash secrets generate`
 npx wrangler secret put EMDASH_AUTH_SECRET      # value: output of `openssl rand -hex 32`
-pnpm deploy                                     # creates the Worker + bakedbyerin.com and www
+pnpm deploy                                     # creates the Worker + shop.bakedbyerin.com
 ```
 
 Preview Worker (optional):
@@ -69,7 +70,7 @@ npx wrangler secret put EMDASH_ENCRYPTION_KEY --name baked-by-erin-preview
 npx wrangler secret put EMDASH_AUTH_SECRET    --name baked-by-erin-preview
 ```
 
-Then visit https://bakedbyerin.com/_emdash/admin to create the admin account.
+Then visit https://shop.bakedbyerin.com/_emdash/admin to create the admin account.
 
 ## Step 5 — Auto-deploy from GitHub (optional)
 
@@ -95,6 +96,14 @@ pass `--env` to wrangler afterwards.
 > (`worker_loaders`), which needs a Workers Paid plan. On the free plan, remove the
 > `worker_loaders` lines from `wrangler.jsonc`; staff can still add products at
 > `/_emdash/admin/content/products`.
+
+## Going live on bakedbyerin.com (later)
+
+When the shop is ready to replace the current site:
+
+1. Dashboard → Workers & Pages → `bakedbyerin` (Pages) → Custom domains → remove `bakedbyerin.com` and `www.bakedbyerin.com`.
+2. In `wrangler.jsonc`, change `routes` to `bakedbyerin.com` and `www.bakedbyerin.com` (both `custom_domain: true`) and set `EMDASH_SITE_URL` to `https://bakedbyerin.com`.
+3. `pnpm deploy`. The old site stays reachable at bakedbyerin.pages.dev.
 
 ## Orders
 

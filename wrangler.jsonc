@@ -2,7 +2,7 @@
 	// Baked by Erin — EmDash site on Cloudflare Workers (D1 + R2).
 	//
 	// Production (main branch):  `pnpm build && wrangler deploy`
-	//   → https://bakedbyerin.com (custom domain; zone must be on your Cloudflare account)
+	//   → https://shop.bakedbyerin.com (custom domain; zone must be on your Cloudflare account)
 	// Previews (any other branch): `CLOUDFLARE_ENV=preview pnpm build && wrangler versions upload`
 	//   → https://<branch>-baked-by-erin-preview.<account-subdomain>.workers.dev
 	//   Separate Worker, D1 and R2 so previews never touch production orders.
@@ -18,10 +18,10 @@
 	// Astro Cloudflare build output (server + assets).
 	"assets": { "directory": "./dist" },
 
-	"routes": [
-		{ "pattern": "bakedbyerin.com", "custom_domain": true },
-		{ "pattern": "www.bakedbyerin.com", "custom_domain": true }
-	],
+	// Testing on a subdomain while the current site stays on the Pages project.
+	// To go live later: remove bakedbyerin.com + www from the Pages project's Custom domains,
+	// swap these routes to bakedbyerin.com / www.bakedbyerin.com, update EMDASH_SITE_URL, redeploy.
+	"routes": [{ "pattern": "shop.bakedbyerin.com", "custom_domain": true }],
 	"workers_dev": false,
 	"preview_urls": false,
 
@@ -38,7 +38,7 @@
 			"bucket_name": "baked-by-erin-media"
 		}
 	],
-	"vars": { "EMDASH_SITE_URL": "https://bakedbyerin.com" },
+	"vars": { "EMDASH_SITE_URL": "https://shop.bakedbyerin.com" },
 
 	// Scheduled publishing + maintenance sweep (1/min).
 	"triggers": { "crons": ["* * * * *"] },
