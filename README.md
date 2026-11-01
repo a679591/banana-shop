@@ -19,6 +19,10 @@ online and pay cash on pickup. Based on the `banana-shop` EmDash template.
    fails until the zone is active.
 3. Node 20+ and pnpm (`npm i -g pnpm`).
 
+## Quick setup (Windows)
+
+Run `powershell -ExecutionPolicy Bypass -File .\setup.ps1` in this folder. It does Steps 1–4 for you.
+
 ## Step 1 — Install and log in
 
 ```bash
