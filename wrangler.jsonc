@@ -44,8 +44,9 @@
 	"triggers": { "crons": ["* * * * *"] },
 
 	// Worker Loader binding — runs the sandboxed catalog-manager plugin in an
-	// isolated isolate. Requires a Workers paid plan.
-	"worker_loaders": [{ "binding": "LOADER" }],
+	// isolated isolate. Requires a Workers paid plan, so it is off for now.
+	// Off on the Workers free plan. To enable the Catalog admin page (needs Workers Paid), uncomment:
+	// "worker_loaders": [{ "binding": "LOADER" }],
 
 	"env": {
 		// Bindings/vars/routes are not inherited by envs, so they're all restated here.
@@ -69,7 +70,7 @@
 			],
 			"vars": {},
 			"triggers": { "crons": ["* * * * *"] },
-			"worker_loaders": [{ "binding": "LOADER" }]
+			// "worker_loaders": [{ "binding": "LOADER" }]
 		}
 	}
 }
