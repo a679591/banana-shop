@@ -42,7 +42,7 @@
 				},
 				{
 					"slug": "mixins",
-					"label": "Mix-in choices (comma separated, leave empty if none)",
+					"label": "Mix-ins: \"A, B\" = customer must pick one; \"optional: A\" = free add-on they can skip",
 					"type": "string"
 				},
 				{
@@ -314,7 +314,8 @@
 							"alt": "Banana Espresso Bread",
 							"filename": "banana-bread-plain.jpeg"
 						}
-					}
+					},
+					"mixins": "optional: Chocolate Chips"
 				},
 				"taxonomies": {
 					"category": [
@@ -359,7 +360,7 @@
 					"highlights": "Chocolate Chips\nPeanut Butter Cups\nOreos",
 					"price": 15,
 					"unit": "loaf",
-					"available": true,
+					"available": false,
 					"sort_order": 30,
 					"price_large": 30,
 					"mixins": "Chocolate Chips, Peanut Butter Cups, Oreos",

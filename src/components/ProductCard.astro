@@ -1,6 +1,7 @@
 ---
 import { Image } from "emdash/ui";
 import type { ContentEntry } from "emdash";
+import { parseMixins } from "../lib/menu-rules";
 
 interface Props {
 	product: ContentEntry<any>;
@@ -24,9 +25,10 @@ const priceLine = hasLarge
 const highlights: string[] = typeof d.highlights === "string"
 	? d.highlights.split("\n").map((s: string) => s.trim()).filter(Boolean)
 	: [];
-const mixins: string[] = typeof d.mixins === "string"
-	? d.mixins.split(",").map((s: string) => s.trim()).filter(Boolean)
-	: [];
+const { choices, optional: mixinsOptional } = parseMixins(d.mixins);
+// Required mix-ins: the customer must pick one. Optional add-ons: free extras they can skip.
+const mixins: string[] = mixinsOptional ? [] : choices;
+const addons: string[] = mixinsOptional ? choices : [];
 const available = d.available !== false;
 const href = `/products/${product.id}`;
 ---
@@ -70,6 +72,16 @@ const href = `/products/${product.id}`;
 					<div class="mixins">
 						{mixins.map((m) => (
 							<button type="button" class="mixin-btn" data-mixin={m} aria-pressed="false">{m}</button>
+						))}
+					</div>
+				</>
+			)}
+			{addons.length > 0 && (
+				<>
+					<p class="mixin-label">Free add-on (optional):</p>
+					<div class="mixins">
+						{addons.map((m) => (
+							<button type="button" class="mixin-btn addon-btn" data-addon={m} aria-pressed="false">+ {m}</button>
 						))}
 					</div>
 				</>

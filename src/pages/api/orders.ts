@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getEmDashCollection } from "emdash";
 import { withEmDashRuntime } from "emdash/middleware";
+import { checkMinimums, parseMixins, type CartLine } from "../../lib/menu-rules";
 
 /**
  * Public order submission. Validates input, recomputes the total from the
@@ -66,7 +67,7 @@ export const POST: APIRoute = async ({ request }) => {
 		status: "published",
 		limit: 100,
 	});
-	type Prod = { title: string; price: number; price_large: number | null; mixins: string[]; available: boolean };
+	type Prod = { title: string; price: number; price_large: number | null; mixins: string[]; mixinsOptional: boolean; category: string | null; available: boolean };
 	const bySlug = new Map<string, Prod>();
 	for (const p of products) {
 		if (typeof p.data.price !== "number") continue;
@@ -74,12 +75,15 @@ export const POST: APIRoute = async ({ request }) => {
 			title: p.data.title,
 			price: p.data.price,
 			price_large: typeof p.data.price_large === "number" && p.data.price_large > 0 ? p.data.price_large : null,
-			mixins: typeof p.data.mixins === "string" ? p.data.mixins.split(",").map((m: string) => m.trim()).filter(Boolean) : [],
+			mixins: parseMixins(p.data.mixins).choices,
+			mixinsOptional: parseMixins(p.data.mixins).optional,
+			category: p.data.terms?.category?.[0]?.slug ?? null,
 			available: p.data.available !== false,
 		});
 	}
 
 	const items: Array<{ product: string; size?: string; mixin?: string; quantity: number; unit_price: number }> = [];
+	const ruleLines: CartLine[] = [];
 	let subtotal = 0;
 	for (const raw of rawItems) {
 		const it = (raw ?? {}) as Record<string, unknown>;
@@ -91,12 +95,16 @@ export const POST: APIRoute = async ({ request }) => {
 		if (!prod || !prod.available) return json({ ok: false, error: `Sorry, ${prod?.title ?? "an item in your cart"} isn't available right now.` }, 400);
 		if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 99) return json({ ok: false, error: `Invalid quantity for ${prod.title}.` }, 400);
 		if (size && !(size === "Small" || (size === "Large" && prod.price_large))) return json({ ok: false, error: `Invalid size for ${prod.title}.` }, 400);
-		if (prod.mixins.length > 0 && !prod.mixins.includes(mixin)) return json({ ok: false, error: `Please pick a mix-in for ${prod.title}.` }, 400);
+		if (prod.mixins.length > 0 && !prod.mixinsOptional && !prod.mixins.includes(mixin)) return json({ ok: false, error: `Please pick a mix-in for ${prod.title}.` }, 400);
+		if (prod.mixinsOptional && mixin && !prod.mixins.includes(mixin)) return json({ ok: false, error: `Invalid add-on for ${prod.title}.` }, 400);
 		if (prod.mixins.length === 0 && mixin) return json({ ok: false, error: `${prod.title} doesn't take mix-ins.` }, 400);
 		const unit_price = size === "Large" && prod.price_large ? prod.price_large : prod.price;
 		items.push({ product: prod.title, size: size || undefined, mixin: mixin || undefined, quantity, unit_price });
+		ruleLines.push({ category: prod.category, size, quantity });
 		subtotal += unit_price * quantity;
 	}
+	const minimumError = checkMinimums(ruleLines);
+	if (minimumError) return json({ ok: false, error: minimumError }, 400);
 	const delivery_fee = fulfillment === "delivery" ? DELIVERY_FEE : 0;
 	const total = Math.round((subtotal + delivery_fee) * 100) / 100;
 

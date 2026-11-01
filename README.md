@@ -124,6 +124,14 @@ Venmo, CashApp, Zelle, cash or check) happens after Erin confirms. Update
 ## Editing the menu
 
 In the admin, each product has: price (small size, or the only price), an
-optional large-size price, highlights (one per line), optional mix-in choices
-(comma separated), a menu order number, a photo, and an Available switch — turn
-that off for out-of-season items like the Passover menu.
+optional large-size price, highlights (one per line), mix-ins, a menu order
+number, a photo, and an Available switch — turn that off for out-of-season items
+like the Passover menu.
+
+Mix-ins field:
+- `Chocolate Chips, Peanut Butter Cups, Oreos` — the customer must pick one.
+- `optional: Chocolate Chips` — a free add-on button the customer can skip.
+
+Minimums (in `src/lib/menu-rules.ts`): at least 2 small (mini) breads, or 2 bags
+of granola, when that's the only thing in the cart. Anything else in the cart
+lifts the minimum.

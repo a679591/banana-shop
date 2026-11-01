@@ -1,6 +1,7 @@
 ---
 import { getEmDashCollection } from "emdash";
 import Base from "../../layouts/Base.astro";
+import { MIN_GROUPS, parseMixins } from "../../lib/menu-rules";
 
 const { entries: products, cacheHint } = await getEmDashCollection("products", {
 	status: "published",
@@ -14,9 +15,13 @@ const catalog = products.map((p) => ({
 	title: p.data.title,
 	price: p.data.price,
 	price_large: typeof p.data.price_large === "number" && p.data.price_large > 0 ? p.data.price_large : null,
-	mixins: typeof p.data.mixins === "string" ? p.data.mixins.split(",").map((s: string) => s.trim()).filter(Boolean) : [],
+	mixins: parseMixins(p.data.mixins).choices,
+	mixinsOptional: parseMixins(p.data.mixins).optional,
+	category: p.data.terms?.category?.[0]?.slug ?? null,
 	available: p.data.available !== false,
 }));
+// Minimum-quantity rules for the browser (the "match" functions stay on the server side).
+const minGroups = MIN_GROUPS.map((g) => ({ key: g.key, min: g.min, label: g.label }));
 
 const DELIVERY_FEE = 10;
 // Orders need this many days' notice (order on Nov 1 → earliest Nov 4). Keep in sync with api/orders.ts.
@@ -40,6 +45,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 				<div class="grand"><span>Total</span><span id="grand-total">$0</span></div>
 			</div>
 			<p class="removed" id="cart-removed" hidden></p>
+			<p class="min-warning" id="min-warning" role="status" hidden></p>
 		</div>
 
 		<form id="order-form" class="panel form" novalidate hidden>
@@ -85,6 +91,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 </Base>
 
 <script type="application/json" id="catalog-data" set:html={JSON.stringify(catalog)}></script>
+<script type="application/json" id="min-groups" set:html={JSON.stringify(minGroups)}></script>
 
 <script is:inline define:vars={{ DELIVERY_FEE, FORMSPREE_URL, LEAD_DAYS }}>
 	(function () {
@@ -124,7 +131,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 			var ok = p && p.available &&
 				(!i.size || i.size === "Small" || (i.size === "Large" && p.price_large)) &&
 				(!i.mixin || p.mixins.indexOf(i.mixin) !== -1) &&
-				(p.mixins.length === 0 || i.mixin);
+				(p.mixins.length === 0 || p.mixinsOptional || i.mixin);
 			if (!ok) removed.push(i.title);
 			return ok;
 		});
@@ -132,6 +139,27 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 			window.bbeCart.write(items);
 			removedEl.textContent = "Removed (no longer available): " + removed.join(", ");
 			removedEl.hidden = false;
+		}
+
+		// Minimums (same rule as src/lib/menu-rules.ts): a group's minimum only applies
+		// when the whole cart is made of that group.
+		var minGroups = JSON.parse(document.getElementById("min-groups").textContent || "[]");
+		function groupKey(item) {
+			var p = bySlug[item.slug];
+			if (item.size === "Small") return "mini";
+			if (p && p.category === "granola") return "granola";
+			return null;
+		}
+		function minimumProblem() {
+			if (items.length === 0) return null;
+			var keys = items.map(groupKey);
+			var first = keys[0];
+			if (!first || keys.some(function (k) { return k !== first; })) return null;
+			var g = minGroups.find(function (x) { return x.key === first; });
+			if (!g) return null;
+			var total = items.reduce(function (n, i) { return n + i.qty; }, 0);
+			if (total >= g.min) return null;
+			return "There's a minimum of " + g.min + " " + g.label + " per order, unless you add something else to your cart.";
 		}
 
 		function render() {
@@ -173,6 +201,10 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 			var fee = isDelivery() ? DELIVERY_FEE : 0;
 			deliveryRow.hidden = fee === 0;
 			addressField.hidden = fee === 0;
+			var problem = minimumProblem();
+			var warnEl = document.getElementById("min-warning");
+			warnEl.textContent = problem || "";
+			warnEl.hidden = !problem;
 			document.getElementById("subtotal").textContent = money(subtotal);
 			document.getElementById("grand-total").textContent = money(subtotal + fee);
 		}
@@ -198,6 +230,13 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 			var btn = document.getElementById("submit-btn");
 			errEl.hidden = true;
 			var fd = new FormData(form);
+
+			var problem = minimumProblem();
+			if (problem) {
+				errEl.textContent = problem;
+				errEl.hidden = false;
+				return;
+			}
 
 			var missing = [];
 			if (!String(fd.get("customer_name") || "").trim()) missing.push("name");
@@ -317,6 +356,8 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 	.totals > div { display: flex; justify-content: space-between; padding: 0.25rem 0; color: #4b5563; }
 	.totals > div[hidden] { display: none; }
 	.totals .grand { font-weight: 700; font-size: 1.15rem; color: var(--fg); border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; }
+	.min-warning { background: #fef3c7; color: #92400e; border-radius: 6px; padding: 0.75rem 1rem; margin: 1rem 0 0; font-weight: 600; font-size: 0.9rem; }
+	.min-warning[hidden] { display: none; }
 	.removed { color: #b45309; font-size: 0.9rem; margin: 1rem 0 0; }
 	.form h2 { margin: 0 0 1rem; color: var(--brown); text-transform: uppercase; letter-spacing: 0.05em; font-size: 1.25rem; }
 	.form > label, .form label:not(.radio) { display: block; margin-bottom: 1rem; font-weight: 600; font-size: 0.9rem; }

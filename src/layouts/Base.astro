@@ -150,6 +150,19 @@ const year = new Date().getFullYear();
 						if (prompt) prompt.hidden = true;
 						return;
 					}
+					// Optional add-ons toggle on and off (one at a time).
+					var addon = e.target.closest("[data-addon]");
+					if (addon) {
+						var ac = addon.closest("[data-product]");
+						var turnOn = addon.getAttribute("aria-pressed") !== "true";
+						ac.querySelectorAll("[data-addon]").forEach(function (b) {
+							var on = turnOn && b === addon;
+							b.classList.toggle("selected", on);
+							b.setAttribute("aria-pressed", on ? "true" : "false");
+						});
+						ac.dataset.selectedMixin = turnOn ? addon.dataset.addon : "";
+						return;
+					}
 					var btn = e.target.closest(".add-btn");
 					if (btn) {
 						var c = btn.closest("[data-product]");
