@@ -5,13 +5,14 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/build-plugin.mjs && astro build",
     "preview": "wrangler dev",
-    "deploy": "astro build && wrangler deploy",
+    "deploy": "pnpm build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "seed:validate": "emdash seed seed/seed.json --validate",
-    "build:preview": "CLOUDFLARE_ENV=preview astro build",
-    "deploy:preview": "CLOUDFLARE_ENV=preview astro build && wrangler versions upload"
+    "build:preview": "node scripts/build-plugin.mjs && CLOUDFLARE_ENV=preview astro build",
+    "deploy:preview": "pnpm build:preview && wrangler versions upload",
+    "build:plugin": "node scripts/build-plugin.mjs"
   },
   "dependencies": {
     "astro": "^7.4.4",
