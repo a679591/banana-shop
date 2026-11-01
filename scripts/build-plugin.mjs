@@ -9,6 +9,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginDir = resolve(root, "catalog-manager");
 const run = (cmd, cwd) => execSync(cmd, { cwd, stdio: "inherit", shell: true });
 
+if (process.env.EMDASH_CATALOG_PLUGIN !== "1") {
+	console.log("Catalog plugin is off (Workers free plan) - skipping its build.");
+	process.exit(0);
+}
+
 console.log("Building catalog-manager plugin…");
 if (!existsSync(resolve(pluginDir, "node_modules"))) run("npm ci --no-audit --no-fund", pluginDir);
 run("npm run build", pluginDir);

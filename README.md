@@ -2,7 +2,7 @@
 
 An EmDash CMS shop on Cloudflare Workers, running at **shop.bakedbyerin.com**
 while the current site stays on the `bakedbyerin` Pages project (bakedbyerin.com) — customers order
-online and pay cash on pickup. Based on the `banana-shop` EmDash template.
+online and pay after Erin confirms. Based on the `banana-shop` EmDash template.
 
 ## Stack
 
@@ -13,7 +13,7 @@ online and pay cash on pickup. Based on the `banana-shop` EmDash template.
 
 ## What you need first
 
-1. A Cloudflare account (free works; the catalog-manager plugin needs **Workers Paid**, see note below).
+1. A Cloudflare account (the free plan works; the optional Catalog page needs **Workers Paid**, see note below).
 2. **bakedbyerin.com added to that Cloudflare account** as a zone, with the
    nameservers at your registrar pointed to Cloudflare. The custom-domain deploy
    fails until the zone is active.
@@ -97,10 +97,12 @@ point it at **your** repo.
 The Astro adapter picks the env from `CLOUDFLARE_ENV` at build time, so **don't**
 pass `--env` to wrangler afterwards.
 
-> **Note:** the catalog-manager plugin uses the Worker Loader binding
-> (`worker_loaders`), which needs a Workers Paid plan. On the free plan, remove the
-> `worker_loaders` lines from `wrangler.jsonc`; staff can still add products at
-> `/_emdash/admin/content/products`.
+> **Note:** the Catalog admin page (catalog-manager plugin) needs the Worker
+> Loader binding, which is Workers Paid only, so it is **off** by default. Products
+> are managed at `/_emdash/admin/content/products`. To turn it on after upgrading:
+> uncomment the two `worker_loaders` lines in `wrangler.jsonc` and build with
+> `EMDASH_CATALOG_PLUGIN=1` (PowerShell: `$env:EMDASH_CATALOG_PLUGIN="1"; pnpm deploy`;
+> in Workers Builds, add it as a build variable).
 
 ## Going live on bakedbyerin.com (later)
 
