@@ -4,58 +4,169 @@ import type { ContentEntry } from "emdash";
 
 interface Props {
 	product: ContentEntry<any>;
+	/** Show the photo (on by default). */
+	showImage?: boolean;
+	/** Link the title to the product page. */
+	linkTitle?: boolean;
 }
-const { product } = Astro.props;
-const price = product.data.price?.toFixed(2) ?? "—";
+const { product, showImage = true, linkTitle = true } = Astro.props;
+const d = product.data;
+
+const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+const hasLarge = typeof d.price_large === "number" && d.price_large > 0;
+const priceLine = hasLarge
+	? `Small ${money(d.price)}  |  Large ${money(d.price_large)}`
+	: d.unit === "bag"
+		? `1 lb bag – ${money(d.price)}`
+		: d.unit === "box"
+			? `Box – ${money(d.price)}`
+			: money(d.price ?? 0);
+const highlights: string[] = typeof d.highlights === "string"
+	? d.highlights.split("\n").map((s: string) => s.trim()).filter(Boolean)
+	: [];
+const mixins: string[] = typeof d.mixins === "string"
+	? d.mixins.split(",").map((s: string) => s.trim()).filter(Boolean)
+	: [];
+const available = d.available !== false;
+const href = `/products/${product.id}`;
 ---
 
-<article class="card">
-	{product.data.featured_image ? (
-		<a href={`/products/${product.id}`} {...product.edit.featured_image}>
-			<Image image={product.data.featured_image} alt={product.data.featured_image.alt ?? product.data.title} />
+<article
+	class="product-card"
+	data-product={product.id}
+	data-title={d.title}
+	data-has-mixins={mixins.length > 0 ? "true" : "false"}
+>
+	{showImage && d.featured_image && (
+		<a href={href} class="photo" {...product.edit.featured_image}>
+			<Image image={d.featured_image} alt={d.featured_image.alt ?? d.title} />
 		</a>
-	) : (
-		<a href={`/products/${product.id}`} class="img-placeholder" aria-label={product.data.title}></a>
 	)}
-	<div class="card-body">
-		<h3 {...product.edit.title}>
-			<a href={`/products/${product.id}`}>{product.data.title}</a>
-		</h3>
-		{product.data.summary && <p {...product.edit.summary}>{product.data.summary}</p>}
-		<div class="card-foot">
-			<span class="price">${price} <span class="unit">/ {product.data.unit ?? "ea"}</span></span>
-			<a class="add" href={`/order?product=${product.id}`}>Add to order →</a>
+
+	<h3 {...product.edit.title}>
+		{linkTitle ? <a href={href}>{d.title}</a> : d.title}
+	</h3>
+	<p class="price">{priceLine}</p>
+
+	{d.summary && (
+		<div class="summary">
+			<p {...product.edit.summary}>{d.summary}</p>
 		</div>
-	</div>
+	)}
+
+	{highlights.length > 0 && (
+		<ul class="highlights" {...product.edit.highlights}>
+			{highlights.map((h) => <li>• {h}</li>)}
+		</ul>
+	)}
+
+	{!available ? (
+		<p class="unavailable">Not available right now — check back soon!</p>
+	) : (
+		<>
+			{mixins.length > 0 && (
+				<>
+					<p class="mixin-label">Select a mix-in{hasLarge ? " then choose your size" : ""}:</p>
+					<div class="mixins">
+						{mixins.map((m) => (
+							<button type="button" class="mixin-btn" data-mixin={m} aria-pressed="false">{m}</button>
+						))}
+					</div>
+				</>
+			)}
+			<div class="add-row">
+				{hasLarge ? (
+					<>
+						<button type="button" class="add-btn" data-size="Small" data-price={d.price} disabled={mixins.length > 0}>
+							+ Small – {money(d.price)}
+						</button>
+						<button type="button" class="add-btn" data-size="Large" data-price={d.price_large} disabled={mixins.length > 0}>
+							+ Large – {money(d.price_large)}
+						</button>
+					</>
+				) : (
+					<button type="button" class="add-btn" data-size="" data-price={d.price} disabled={mixins.length > 0}>
+						+ Add to Cart – {money(d.price)}
+					</button>
+				)}
+			</div>
+			{mixins.length > 0 && <p class="mixin-prompt">Select a mix-in above to add to cart</p>}
+		</>
+	)}
 </article>
 
 <style>
-	.card {
+	.product-card {
 		border: 1px solid var(--border);
-		border-radius: var(--radius);
 		background: #fff;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+		border-radius: var(--radius);
+		padding: 1.5rem;
+		text-align: center;
+		transition: all 0.3s ease;
 	}
-	.card :global(img) { width: 100%; height: 200px; object-fit: cover; display: block; }
-	.img-placeholder {
+	.product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+	.photo { display: block; margin-bottom: 1rem; }
+	.photo :global(img) {
 		display: block;
 		width: 100%;
-		height: 200px;
-		background: var(--bg-alt);
+		max-height: 420px;
+		object-fit: cover;
+		border-radius: 4px;
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 	}
-	.card-body { padding: 1rem 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
-	.card-body h3 { margin: 0; font-size: 1.1rem; }
-	.card-body h3 a { color: var(--fg); }
-	.card-body p { margin: 0; color: var(--muted); font-size: 0.92rem; }
-	.card-foot {
-		margin-top: 0.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
+	h3 { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem; color: var(--brown); }
+	h3 a { color: inherit; text-decoration: none; }
+	h3 a:hover { text-decoration: underline; }
+	.price { color: var(--muted); font-weight: 600; margin: 0 0 0.75rem; white-space: pre-wrap; }
+	.summary { border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 0.75rem; }
+	.summary p { margin: 0; color: #4b5563; font-size: 0.875rem; }
+	.highlights {
+		list-style: none;
+		margin: 1rem 0 0.5rem;
+		padding: 0.75rem;
+		background: var(--soft);
+		border-radius: 4px;
+		text-align: left;
+		font-size: 0.875rem;
+		font-weight: 700;
 	}
-	.price { font-weight: 700; color: var(--fg); }
-	.unit { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
-	.add { font-weight: 600; font-size: 0.9rem; }
+	.highlights li { margin: 0; }
+	.mixin-label { font-size: 0.875rem; font-weight: 600; color: #4b5563; margin: 1rem 0 0.75rem; }
+	.mixins { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+	.mixin-btn {
+		padding: 0.5rem 1rem;
+		border-radius: 999px;
+		border: 2px solid var(--brown);
+		color: var(--brown);
+		background: #fff;
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+	.mixin-btn:hover, .mixin-btn:global(.selected) { background: var(--brown); color: #fff; }
+	.add-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+	.add-btn {
+		flex: 1;
+		background: var(--brown);
+		color: #fff;
+		border: none;
+		padding: 10px 16px;
+		border-radius: 6px;
+		font: inherit;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.2s, transform 0.1s;
+	}
+	.add-btn:hover:not(:disabled) { background: var(--brown-dark); transform: translateY(-1px); }
+	.add-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+	.mixin-prompt { font-size: 0.875rem; color: #9ca3af; margin: 0.75rem 0 0; }
+	.mixin-prompt[hidden] { display: none; }
+	.unavailable { margin: 1rem 0 0; color: var(--muted); font-style: italic; }
+	@media (max-width: 480px) {
+		.add-row { flex-direction: column; }
+	}
 </style>

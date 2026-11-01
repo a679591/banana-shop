@@ -15,7 +15,7 @@ import { z } from "zod";
 
 const COLLECTION = "products";
 const TAXONOMY = "category";
-const UNITS = ["loaf", "jar", "bag"] as const;
+const UNITS = ["loaf", "cake", "bag", "bottle", "box"] as const;
 
 // --- Interactions from the admin host -------------------------------------
 
@@ -43,6 +43,7 @@ interface ProductRow {
 	status: string;
 	title: string | null;
 	price: number | null;
+	price_large: number | null;
 	unit: string | null;
 	available: boolean | null;
 	category: string | null;
@@ -115,7 +116,7 @@ function listPage(rows: ProductRow[], terms: Term[], toast?: { type: "success" |
 				rows: rows.map((r) => ({
 					title: r.title ?? "(untitled)",
 					category: terms.find((t) => t.slug === r.category)?.label ?? "—",
-					price: money(r.price),
+					price: r.price_large != null ? `${money(r.price)} / ${money(r.price_large)}` : money(r.price),
 					unit: r.unit ?? "—",
 					available: r.available === false ? "No" : "Yes",
 					status: statusLabel(r.status),
@@ -142,21 +143,22 @@ function newProductForm(terms: Term[], initial?: Record<string, unknown>): Block
 				type: "form",
 				block_id: "new_product",
 				fields: [
-					{ type: "text_input", action_id: "title", label: "Name", placeholder: "e.g. Maple Pecan Granola", initial_value: typeof initial?.title === "string" ? initial.title : undefined },
+					{ type: "text_input", action_id: "title", label: "Name", placeholder: "e.g. Mango Bread", initial_value: typeof initial?.title === "string" ? initial.title : undefined },
 					{
 						type: "select",
 						action_id: "category_id",
 						label: "Category",
 						options: categoryOptions(terms),
 					},
-					{ type: "number_input", action_id: "price", label: "Price (USD)", min: 0, initial_value: typeof initial?.price === "number" ? initial.price : undefined },
+					{ type: "number_input", action_id: "price", label: "Price (USD) — small size, or the only price", min: 0, initial_value: typeof initial?.price === "number" ? initial.price : undefined },
+					{ type: "number_input", action_id: "price_large", label: "Large size price (optional)", min: 0, initial_value: typeof initial?.price_large === "number" ? initial.price_large : undefined },
 					{
 						type: "select",
 						action_id: "unit",
 						label: "Unit",
 						options: UNITS.map((u) => ({ label: u, value: u })),
 					},
-					{ type: "text_input", action_id: "summary", label: "One-line summary", placeholder: "e.g. Toasted oats, pecans, maple. Big clusters.", initial_value: typeof initial?.summary === "string" ? initial.summary : undefined },
+					{ type: "text_input", action_id: "summary", label: "One-line summary", placeholder: "e.g. Tropical fruit bread, great any time.", initial_value: typeof initial?.summary === "string" ? initial.summary : undefined },
 					{ type: "toggle", action_id: "available", label: "Available for order", initial_value: initial?.available !== false },
 				],
 				submit: { label: "Add & publish", action_id: "create" },
@@ -202,6 +204,7 @@ async function readRows(ctx: any): Promise<{ rows: ProductRow[]; terms: Term[] }
 				status: item.status,
 				title: (d.title as string) ?? null,
 				price: (d.price as number) ?? null,
+				price_large: (d.price_large as number) ?? null,
 				unit: (d.unit as string) ?? null,
 				available: d.available === false ? false : true,
 				category: termMap[item.id]?.[0] ?? null,
@@ -251,6 +254,8 @@ const plugin: SandboxedPlugin = {
 
 						const data: Record<string, unknown> = { title, price, unit, available };
 						if (summary) data.summary = summary;
+						const priceLarge = typeof v.price_large === "number" ? v.price_large : Number(v.price_large);
+						if (v.price_large != null && v.price_large !== "" && Number.isFinite(priceLarge) && priceLarge > 0) data.price_large = priceLarge;
 
 						const created = await ctx.content.create(COLLECTION, data);
 

@@ -55,8 +55,9 @@ pnpm dev                                   # http://localhost:4321
 npx emdash seed seed/seed.json --validate  # loads sample products
 ```
 
-The sample products are still the template's breads and granola — swap them for
-Erin's menu in the admin, or edit `seed/seed.json` before seeding.
+`seed/seed.json` holds Erin's real menu (breads, cakes, granola, seasonal and
+Passover items, with photos pulled from bakedbyerin.com). On the live site, choose
+**sample content** in the first-run setup wizard at `/_emdash/admin` to load it.
 
 ## Step 4 — Secrets and first deploy
 
@@ -111,6 +112,16 @@ When the shop is ready to replace the current site:
 
 ## Orders
 
-Orders live in the EmDash `orders` collection. Customers submit via
-`POST /api/orders` (the total is recalculated from server-side prices). Staff
-update `order_status` in the admin. Payment is cash on pickup.
+Customers add items to a cart (sizes and mix-ins included), choose pickup or
+Miami delivery (+$10), and check out at `/order`. `POST /api/orders` recalculates
+every price on the server and saves the order in the EmDash `orders` collection,
+and the browser also sends Erin the usual Formspree email. Payment (PayPal,
+Venmo, CashApp, Zelle, cash or check) happens after Erin confirms. Update
+`order_status` in the admin as orders move along.
+
+## Editing the menu
+
+In the admin, each product has: price (small size, or the only price), an
+optional large-size price, highlights (one per line), optional mix-in choices
+(comma separated), a menu order number, a photo, and an Available switch — turn
+that off for out-of-season items like the Passover menu.

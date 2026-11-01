@@ -6,9 +6,12 @@ import { withEmDashRuntime } from "emdash/middleware";
  * Public order submission. Validates input, recomputes the total from the
  * server's product prices (never trusts the client total), and writes the
  * order as a published `orders` content entry via the EmDash runtime.
+ * Delivery (Miami) adds a flat fee; payment happens after Erin confirms.
  *
  * This is an internet-facing endpoint: it validates everything itself.
  */
+
+const DELIVERY_FEE = 10;
 
 export const POST: APIRoute = async ({ request }) => {
 	if (request.method !== "POST") {
@@ -26,47 +29,66 @@ export const POST: APIRoute = async ({ request }) => {
 	}
 
 	const b = (body ?? {}) as Record<string, unknown>;
-	const customer_name = typeof b.customer_name === "string" ? b.customer_name.trim() : "";
-	const customer_email = typeof b.customer_email === "string" ? b.customer_email.trim() : "";
-	const customer_phone = typeof b.customer_phone === "string" ? b.customer_phone.trim() : "";
-	const pickup_name = typeof b.pickup_name === "string" ? b.pickup_name.trim() : "";
-	// <input type="datetime-local"> sends "YYYY-MM-DDTHH:mm"; EmDash datetime fields want full ISO.
-	const pickupMs = typeof b.pickup_date === "string" ? Date.parse(b.pickup_date) : NaN;
+	const str = (v: unknown, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+	const customer_name = str(b.customer_name, 120);
+	const customer_email = str(b.customer_email, 200);
+	const customer_phone = str(b.customer_phone, 40);
+	const fulfillment = str(b.fulfillment, 20);
+	const delivery_address = str(b.delivery_address, 500);
+	const notes = str(b.notes, 2000);
+	// <input type="date"> sends "YYYY-MM-DD". Store it as midday so it never shifts a day across time zones.
+	const requested_date = /^\d{4}-\d{2}-\d{2}$/.test(str(b.pickup_date, 10)) ? str(b.pickup_date, 10) : "";
+	const pickupMs = requested_date ? Date.parse(`${requested_date}T12:00:00Z`) : NaN;
 	const pickup_date = Number.isNaN(pickupMs) ? "" : new Date(pickupMs).toISOString();
-	const pickup_location = typeof b.pickup_location === "string" ? b.pickup_location : "";
-	const notes = typeof b.notes === "string" ? b.notes : "";
-	const rawItems = Array.isArray(b.items) ? b.items : [];
+	const rawItems = Array.isArray(b.items) ? b.items.slice(0, 50) : [];
 
 	if (!customer_name) return json({ ok: false, error: "Your name is required." }, 400);
-	if (!pickup_date) return json({ ok: false, error: "A pickup date and time is required." }, 400);
-	if (!["kitchen", "market-stall"].includes(pickup_location))
-		return json({ ok: false, error: "Choose a pickup location." }, 400);
-	if (rawItems.length === 0) return json({ ok: false, error: "Add at least one item." }, 400);
+	if (!customer_phone) return json({ ok: false, error: "A phone number is required so Erin can confirm your order." }, 400);
+	if (!pickup_date) return json({ ok: false, error: "Please choose a date." }, 400);
+	if (pickupMs < Date.now() - 36 * 60 * 60 * 1000) return json({ ok: false, error: "Please choose a date in the future." }, 400);
+	if (!["pickup", "delivery"].includes(fulfillment)) return json({ ok: false, error: "Choose pickup or delivery." }, 400);
+	if (fulfillment === "delivery" && !delivery_address)
+		return json({ ok: false, error: "A delivery address is required for delivery." }, 400);
+	if (rawItems.length === 0) return json({ ok: false, error: "Your cart is empty." }, 400);
 
-	// Resolve product slugs + prices from the server. Never trust client prices.
+	// Resolve products, sizes, mix-ins and prices from the server. Never trust client prices.
 	const { entries: products } = await getEmDashCollection("products", {
 		status: "published",
 		limit: 100,
 	});
-	const priceBySlug = new Map<string, { price: number; title: string }>();
+	type Prod = { title: string; price: number; price_large: number | null; mixins: string[]; available: boolean };
+	const bySlug = new Map<string, Prod>();
 	for (const p of products) {
-		if (p.data.price != null) priceBySlug.set(p.id, { price: p.data.price, title: p.data.title });
+		if (typeof p.data.price !== "number") continue;
+		bySlug.set(p.id, {
+			title: p.data.title,
+			price: p.data.price,
+			price_large: typeof p.data.price_large === "number" && p.data.price_large > 0 ? p.data.price_large : null,
+			mixins: typeof p.data.mixins === "string" ? p.data.mixins.split(",").map((m: string) => m.trim()).filter(Boolean) : [],
+			available: p.data.available !== false,
+		});
 	}
 
-	const items: Array<{ product: string; quantity: number; unit_price: number }> = [];
-	let total = 0;
+	const items: Array<{ product: string; size?: string; mixin?: string; quantity: number; unit_price: number }> = [];
+	let subtotal = 0;
 	for (const raw of rawItems) {
-		const it = raw as Record<string, unknown>;
-		const slug = typeof it.product === "string" ? it.product : "";
+		const it = (raw ?? {}) as Record<string, unknown>;
+		const slug = str(it.product, 200);
+		const size = str(it.size, 10);
+		const mixin = str(it.mixin, 60);
 		const quantity = Number(it.quantity);
-		const prod = priceBySlug.get(slug);
-		if (!prod || !Number.isFinite(quantity) || quantity <= 0 || quantity > 999) {
-			return json({ ok: false, error: `Invalid item: ${slug || "(no product)"}` }, 400);
-		}
-		items.push({ product: prod.title, quantity, unit_price: prod.price });
-		total += prod.price * quantity;
+		const prod = bySlug.get(slug);
+		if (!prod || !prod.available) return json({ ok: false, error: `Sorry, ${prod?.title ?? "an item in your cart"} isn't available right now.` }, 400);
+		if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 99) return json({ ok: false, error: `Invalid quantity for ${prod.title}.` }, 400);
+		if (size && !(size === "Small" || (size === "Large" && prod.price_large))) return json({ ok: false, error: `Invalid size for ${prod.title}.` }, 400);
+		if (prod.mixins.length > 0 && !prod.mixins.includes(mixin)) return json({ ok: false, error: `Please pick a mix-in for ${prod.title}.` }, 400);
+		if (prod.mixins.length === 0 && mixin) return json({ ok: false, error: `${prod.title} doesn't take mix-ins.` }, 400);
+		const unit_price = size === "Large" && prod.price_large ? prod.price_large : prod.price;
+		items.push({ product: prod.title, size: size || undefined, mixin: mixin || undefined, quantity, unit_price });
+		subtotal += unit_price * quantity;
 	}
-	total = Math.round(total * 100) / 100;
+	const delivery_fee = fulfillment === "delivery" ? DELIVERY_FEE : 0;
+	const total = Math.round((subtotal + delivery_fee) * 100) / 100;
 
 	try {
 		const id = await withEmDashRuntime(async (runtime) => {
@@ -75,13 +97,14 @@ export const POST: APIRoute = async ({ request }) => {
 					customer_name,
 					customer_email: customer_email || undefined,
 					customer_phone: customer_phone || undefined,
-					pickup_name: pickup_name || undefined,
 					pickup_date,
-					pickup_location,
+					fulfillment,
+					delivery_address: delivery_address || undefined,
 					items,
+					delivery_fee,
 					total,
 					notes: notes || undefined,
-					payment_method: "cash-on-pickup",
+					payment_method: "pay-after-confirmation",
 					order_status: "new",
 				},
 				// Published content needs a slug; orders aren't public pages, so any unique value works.
@@ -95,7 +118,15 @@ export const POST: APIRoute = async ({ request }) => {
 			await runtime.handleContentPublish("orders", createdId);
 			return createdId;
 		});
-		return json({ ok: true, id }, 201);
+		// The order summary is echoed back so the browser can send Erin's notification email.
+		return json(
+			{
+				ok: true,
+				id,
+				order: { customer_name, customer_phone, customer_email, fulfillment, delivery_address, requested_date, items, delivery_fee, total, notes },
+			},
+			201,
+		);
 	} catch (err) {
 		return json({ ok: false, error: `Could not save your order: ${(err as Error).message}` }, 500);
 	}

@@ -1,62 +1,78 @@
 ---
 import { getEmDashCollection } from "emdash";
-import { Image } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 import ProductCard from "../components/ProductCard.astro";
 
 const { entries: products, cacheHint } = await getEmDashCollection("products", {
 	status: "published",
 	where: { available: true },
-	orderBy: { published_at: "desc" },
-	limit: 12,
+	limit: 50,
 });
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
-const featured = products.slice(0, 3);
+const featured = [...products]
+	.sort((a, b) => (a.data.sort_order ?? 999) - (b.data.sort_order ?? 999))
+	.slice(0, 3);
 ---
 
 <Base title="Home">
 	<section class="hero">
-		<h1>Baked by Erin</h1>
-		<p>Small-batch home baking, made to order. Order ahead, pay cash on pickup.</p>
-		<div class="hero-cta">
-			<a class="btn" href="/products">Browse the menu</a>
-			<a class="btn ghost" href="/order">Start an order →</a>
-		</div>
+		<h1>FRESHLY BAKED TREATS</h1>
+		<p>Handcrafted treats made with love for every occasion</p>
+		<a href="/products" class="btn-primary">View Menu</a>
 	</section>
 
-	<section>
-		<h2>Fresh this week</h2>
-		{featured.length === 0 ? (
-			<p class="empty">No products yet — add some in the admin catalog manager.</p>
-		) : (
+	{featured.length > 0 && (
+		<section class="favorites">
+			<h2 class="section-heading">Favorites</h2>
 			<div class="grid">
 				{featured.map((p) => <ProductCard product={p} />)}
 			</div>
-		)}
+			<p class="more"><a href="/products">See the full menu →</a></p>
+		</section>
+	)}
+
+	<section id="about" class="about">
+		<h2 class="section-heading">About Erin</h2>
+		<div class="avatar" aria-hidden="true">👩‍🍳</div>
+		<p>
+			Hi, I'm Erin—a home baker obsessed with creating mouthwatering treats for every occasion.
+			Whether you're craving classic cakes or artisanal breads, I pour my heart into every batch.
+			Each recipe is crafted with premium ingredients and years of passion for the perfect bite.
+		</p>
 	</section>
 </Base>
 
 <style>
-	.hero { text-align: center; padding: 3rem 1rem 2rem; }
-	.hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: 0 0 0.5rem; }
-	.hero p { max-width: 38rem; margin: 0 auto 1.5rem; color: var(--muted); font-size: 1.1rem; }
-	.hero-cta { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
-	.btn {
-		display: inline-block;
-		padding: 0.65rem 1.3rem;
+	.hero { text-align: center; padding: 6rem 1rem; max-width: 56rem; margin: 0 auto; }
+	.hero h1 {
+		font-size: 4.5rem;
+		font-weight: 900;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
+		color: var(--brown);
+		margin: 0 0 1.5rem;
+	}
+	.hero p { font-size: 1.25rem; color: #4b5563; margin: 0 auto 2rem; max-width: 42rem; }
+	.favorites { padding: 3rem 1rem 4rem; max-width: 1100px; margin: 0 auto; }
+	.grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+	.more { text-align: center; margin: 2rem 0 0; font-weight: 600; }
+	.more a { text-decoration: none; }
+	.about { background: var(--soft); padding: 4rem 1rem; text-align: center; }
+	.avatar {
+		width: 8rem;
+		height: 8rem;
 		border-radius: 999px;
-		font-weight: 600;
-		background: var(--accent);
-		color: #fff;
+		background: #ffedd5;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 3rem;
+		margin: 0 auto 1.5rem;
 	}
-	.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-	.btn:hover { text-decoration: none; opacity: 0.92; }
-	h2 { margin: 2.5rem 0 1rem; }
-	.grid {
-		display: grid;
-		gap: 1.25rem;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	.about p { max-width: 42rem; margin: 0 auto; font-size: 1.125rem; color: #4b5563; line-height: 1.7; }
+	@media (max-width: 768px) {
+		.hero { padding: 4rem 1rem; }
+		.hero h1 { font-size: 3rem; }
 	}
-	.empty { color: var(--muted); }
 </style>
