@@ -5,7 +5,7 @@
 	"publisher": "did:plc:hacknightbakery000000000000000",
 
 	"license": "MIT",
-	"author": { "name": "Hack Night Bakery" },
+	"author": { "name": "Baked by Erin" },
 	"security": { "url": "https://emdashcms.com" },
 
 	// Friendly catalog manager for non-technical staff: add and list products

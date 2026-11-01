@@ -1,104 +1,103 @@
-# Hack Night Bakery 🍌🍞
+# Baked by Erin 🧁
 
-An EmDash CMS site on Cloudflare Workers — a small online shop selling banana
-bread and granola via order forms with **cash on pickup**. Built for a hack
-night demo.
+An EmDash CMS shop on Cloudflare Workers for **bakedbyerin.com** — customers order
+online and pay cash on pickup. Based on the `banana-shop` EmDash template.
 
 ## Stack
 
 - [EmDash](https://emdashcms.com) — Astro-native CMS (`emdash@1.4.0`)
-- [Astro 7](https://astro.build) with the Cloudflare adapter (`output: server`)
-- Cloudflare Workers + D1 (database) + R2 (media)
-- A sandboxed **catalog-manager** plugin (Block Kit admin UI) so staff can add
-  products without the full content editor
+- Astro 7 with the Cloudflare adapter (`output: server`)
+- Cloudflare Workers + D1 (database) + R2 (photos/media)
+- A sandboxed **catalog-manager** plugin so staff can add products without the full editor
 
-## Structure
+## What you need first
 
-```
-.
-├── astro.config.mjs        # Astro + EmDash (D1/R2) + sandboxed plugin
-├── wrangler.jsonc          # Worker, D1, R2, cron, LOADER binding
-├── seed/seed.json          # Schema: products + orders collections, category taxonomy
-├── src/
-│   ├── worker.ts           # Cloudflare Worker entry (scheduled handler)
-│   ├── live.config.ts      # EmDash live collections boilerplate
-│   ├── layouts/Base.astro
-│   └── pages/              # storefront, order form, /api/orders, confirmation
-└── catalog-manager/        # sandboxed plugin: friendly product catalog UI
-    └── src/plugin.ts
-```
+1. A Cloudflare account (free works; the catalog-manager plugin needs **Workers Paid**, see note below).
+2. **bakedbyerin.com added to that Cloudflare account** as a zone, with the
+   nameservers at your registrar pointed to Cloudflare. The custom-domain deploy
+   fails until the zone is active.
+3. Node 20+ and pnpm (`npm i -g pnpm`).
 
-## Develop
+## Step 1 — Install and log in
 
-```sh
+```bash
 pnpm install
-pnpm dev          # http://localhost:4321  (admin at /_emdash/admin)
+npx wrangler login
 ```
 
-First run applies the seed schema on the local D1. Apply sample content with:
+## Step 2 — Create the database and storage (one time)
 
-```sh
-npx emdash seed seed/seed.json --validate
+```bash
+# Production
+npx wrangler d1 create baked-by-erin
+npx wrangler r2 bucket create baked-by-erin-media
+
+# Previews (separate, so test orders never reach the real shop)
+npx wrangler d1 create baked-by-erin-preview
+npx wrangler r2 bucket create baked-by-erin-preview-media
 ```
 
-## Deploy
+Each `d1 create` prints a `database_id`. Paste them into `wrangler.jsonc`:
 
-| Branch | Worker | URL | D1 / R2 |
-| --- | --- | --- | --- |
-| `main` | `hack-night-demo` | https://banana-shop.cbnsndwch.dev (custom domain) | `hack-night-demo` / `hack-night-demo-media` |
-| any other | `hack-night-demo-preview` | `https://<branch>-hack-night-demo-preview.<subdomain>.workers.dev` | `hack-night-demo-preview` / `hack-night-demo-preview-media` |
+- `REPLACE_WITH_PROD_D1_ID` → ID from `baked-by-erin`
+- `REPLACE_WITH_PREVIEW_D1_ID` → ID from `baked-by-erin-preview`
 
-The D1 databases and R2 buckets already exist on the cbnsndwch account. Previews
-use separate storage, so test orders never reach production.
+## Step 3 — Try it locally
 
-The Astro Cloudflare adapter flattens `wrangler.jsonc` into
-`dist/server/wrangler.json` at build time. It picks the env from `CLOUDFLARE_ENV`,
-so set that before building and **don't** pass `--env` to wrangler afterwards.
+```bash
+pnpm dev                                   # http://localhost:4321
+                                           # admin: http://localhost:4321/_emdash/admin
+npx emdash seed seed/seed.json --validate  # loads sample products
+```
 
-### One-time bootstrap
+The sample products are still the template's breads and granola — swap them for
+Erin's menu in the admin, or edit `seed/seed.json` before seeding.
 
-Both Workers need to exist (and have secrets) before the CI builds can deploy them:
+## Step 4 — Secrets and first deploy
 
-```sh
-# production
-npx wrangler secret put EMDASH_ENCRYPTION_KEY   # value: npx emdash secrets generate
-npx wrangler secret put EMDASH_AUTH_SECRET      # value: openssl rand -hex 32
-pnpm deploy                                     # creates the Worker + custom domain
+```bash
+npx wrangler secret put EMDASH_ENCRYPTION_KEY   # value: output of `npx emdash secrets generate`
+npx wrangler secret put EMDASH_AUTH_SECRET      # value: output of `openssl rand -hex 32`
+pnpm deploy                                     # creates the Worker + bakedbyerin.com and www
+```
 
-# preview Worker
+Preview Worker (optional):
+
+```bash
 CLOUDFLARE_ENV=preview pnpm build && npx wrangler deploy
-npx wrangler secret put EMDASH_ENCRYPTION_KEY --name hack-night-demo-preview
-npx wrangler secret put EMDASH_AUTH_SECRET    --name hack-night-demo-preview
+npx wrangler secret put EMDASH_ENCRYPTION_KEY --name baked-by-erin-preview
+npx wrangler secret put EMDASH_AUTH_SECRET    --name baked-by-erin-preview
 ```
 
-### Wire Workers Builds (Dashboard → Workers → *worker* → Settings → Builds → Connect)
+Then visit https://bakedbyerin.com/_emdash/admin to create the admin account.
 
-Connect **both** Workers to `cbnsndwch/banana-shop`:
+## Step 5 — Auto-deploy from GitHub (optional)
 
-**`hack-night-demo`** (production)
+Cloudflare Dashboard → Workers → *worker* → Settings → Builds → Connect, and
+point it at **your** repo.
+
+**`baked-by-erin`** (production)
 - Production branch: `main`
 - Build command: `pnpm build`
 - Deploy command: `npx wrangler deploy`
-- Builds for non-production branches: **off**
+- Non-production branch builds: **off**
 
-**`hack-night-demo-preview`** (branch previews)
-- Production branch: `main` (any value works; this Worker only uploads versions)
+**`baked-by-erin-preview`** (branch previews)
 - Build variable: `CLOUDFLARE_ENV=preview`
 - Build command: `pnpm build`
 - Deploy command: `npx wrangler versions upload`
-- Builds for non-production branches: **on**, with deploy command `npx wrangler versions upload`
+- Non-production branch builds: **on**, deploy command `npx wrangler versions upload`
 
-Each push to a non-`main` branch uploads a version with a branch-named preview
-alias, and the bot comments the URL on the PR. Run it by hand with `pnpm deploy:preview`.
+The Astro adapter picks the env from `CLOUDFLARE_ENV` at build time, so **don't**
+pass `--env` to wrangler afterwards.
 
-> **Note:** The sandboxed catalog-manager plugin needs the Worker Loader
-> (`worker_loaders: [{ "binding": "LOADER" }]`) binding, which requires a
-> Workers paid plan. Without it the plugin is disabled at build time and staff
-> can still add products in the full admin at `/_emdash/admin/content/products`.
+> **Note:** the catalog-manager plugin uses the Worker Loader binding
+> (`worker_loaders`), which needs a Workers Paid plan. On the free plan, remove the
+> `worker_loaders` lines from `wrangler.jsonc`; staff can still add products at
+> `/_emdash/admin/content/products`.
 
 ## Orders
 
-Orders are an EmDash `orders` collection. Customers submit via `POST /api/orders`
-(which recomputes the total from server-side product prices and writes a
-published entry). Staff review and update `order_status` in the admin.
-Payment is cash on pickup — no online payment.
+Orders live in the EmDash `orders` collection. Customers submit via
+`POST /api/orders` (the total is recalculated from server-side prices). Staff
+update `order_status` in the admin. Payment is cash on pickup.

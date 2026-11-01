@@ -1,41 +1,44 @@
 {
-	// EmDash site on Cloudflare Workers (D1 + R2), account: cbnsndwch.
+	// Baked by Erin — EmDash site on Cloudflare Workers (D1 + R2).
 	//
 	// Production (main branch):  `pnpm build && wrangler deploy`
-	//   → https://banana-shop.cbnsndwch.dev (custom domain on the cbnsndwch.dev zone)
+	//   → https://bakedbyerin.com (custom domain; zone must be on your Cloudflare account)
 	// Previews (any other branch): `CLOUDFLARE_ENV=preview pnpm build && wrangler versions upload`
-	//   → https://<branch>-hack-night-demo-preview.<account-subdomain>.workers.dev
+	//   → https://<branch>-baked-by-erin-preview.<account-subdomain>.workers.dev
 	//   Separate Worker, D1 and R2 so previews never touch production orders.
 	//
 	// The Astro Cloudflare adapter flattens the selected env into dist/server/wrangler.json
 	// at build time (selected via CLOUDFLARE_ENV), so don't pass `--env` to wrangler after building.
-	"name": "hack-night-demo",
+	"name": "baked-by-erin",
 	"main": "./src/worker.ts",
-	"account_id": "2762e11135a6c3145300ccb70c44ae81",
+	// "account_id": "YOUR_ACCOUNT_ID",  // optional; wrangler uses your logged-in account
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 
 	// Astro Cloudflare build output (server + assets).
 	"assets": { "directory": "./dist" },
 
-	"routes": [{ "pattern": "banana-shop.cbnsndwch.dev", "custom_domain": true }],
+	"routes": [
+		{ "pattern": "bakedbyerin.com", "custom_domain": true },
+		{ "pattern": "www.bakedbyerin.com", "custom_domain": true }
+	],
 	"workers_dev": false,
 	"preview_urls": false,
 
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "hack-night-demo",
-			"database_id": "4a7cd22c-2503-4cdb-a5f3-3ff6cee473ca"
+			"database_name": "baked-by-erin",
+			"database_id": "REPLACE_WITH_PROD_D1_ID"
 		}
 	],
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
-			"bucket_name": "hack-night-demo-media"
+			"bucket_name": "baked-by-erin-media"
 		}
 	],
-	"vars": { "EMDASH_SITE_URL": "https://banana-shop.cbnsndwch.dev" },
+	"vars": { "EMDASH_SITE_URL": "https://bakedbyerin.com" },
 
 	// Scheduled publishing + maintenance sweep (1/min).
 	"triggers": { "crons": ["* * * * *"] },
@@ -47,21 +50,21 @@
 	"env": {
 		// Bindings/vars/routes are not inherited by envs, so they're all restated here.
 		"preview": {
-			"name": "hack-night-demo-preview",
+			"name": "baked-by-erin-preview",
 			"routes": [],
 			"workers_dev": true,
 			"preview_urls": true,
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_name": "hack-night-demo-preview",
-					"database_id": "78420ecd-b84c-4762-855d-bef8eae8ebe0"
+					"database_name": "baked-by-erin-preview",
+					"database_id": "REPLACE_WITH_PREVIEW_D1_ID"
 				}
 			],
 			"r2_buckets": [
 				{
 					"binding": "MEDIA",
-					"bucket_name": "hack-night-demo-preview-media"
+					"bucket_name": "baked-by-erin-preview-media"
 				}
 			],
 			"vars": {},

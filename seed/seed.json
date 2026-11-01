@@ -2,13 +2,13 @@
 	"$schema": "https://emdashcms.com/seed.schema.json",
 	"version": "1",
 	"meta": {
-		"name": "Hack Night Bakery",
-		"description": "Small-batch banana bread and granola, baked for hack night. Order ahead, pay cash on pickup.",
-		"author": "Hack Night Bakery"
+		"name": "Baked by Erin",
+		"description": "Small-batch home baking. Order ahead, pay cash on pickup.",
+		"author": "Baked by Erin"
 	},
 	"settings": {
-		"title": "Hack Night Bakery",
-		"tagline": "Small-batch banana bread & granola. Order ahead, pay on pickup.",
+		"title": "Baked by Erin",
+		"tagline": "Fresh-baked treats, made to order. Order ahead, pay on pickup.",
 		"postsPerPage": 12
 	},
 	"collections": [

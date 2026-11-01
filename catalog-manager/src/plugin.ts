@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * Catalog Manager — a friendly admin UI for staff to add and list shop products
- * (banana breads and granola) without using the full content editor.
+ * (bakery items) without using the full content editor.
  *
  * Mounted at /_emdash/admin/plugins/catalog-manager/catalog. Reads the live
  * schema so it stays in sync with the `products` collection and `category`
@@ -83,7 +83,7 @@ function listPage(rows: ProductRow[], terms: Term[], toast?: { type: "success" |
 			{ type: "header", text: "Catalog" },
 			{
 				type: "context",
-				text: "Add new banana breads and granola here. New products go live on the storefront immediately. Use “Edit” to add a photo or change anything else.",
+				text: "Add new bakery items here. New products go live on the storefront immediately. Use “Edit” to add a photo or change anything else.",
 			},
 			{
 				type: "stats",

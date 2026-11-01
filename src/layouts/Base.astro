@@ -14,7 +14,7 @@ const { title, description, content } = Astro.props;
 const { data: settings, cacheHint: settingsCache } = await getSiteSettingsWithCacheHint();
 const { data: menu, cacheHint: menuCache } = await getMenuWithCacheHint("primary");
 
-const siteTitle = settings?.title ?? "Hack Night Bakery";
+const siteTitle = settings?.title ?? "Baked by Erin";
 const pageTitle = title ? `${title} · ${siteTitle}` : siteTitle;
 const pageDescription = description ?? settings?.tagline ?? "";
 

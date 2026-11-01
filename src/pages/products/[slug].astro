@@ -11,7 +11,7 @@ if (!product) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const seo = getSeoMeta(product, {
-	siteTitle: "Hack Night Bakery",
+	siteTitle: "Baked by Erin",
 	siteUrl: Astro.url.origin,
 	path: `/products/${slug}`,
 });
