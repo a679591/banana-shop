@@ -48,17 +48,33 @@ function Ensure-R2($name) {
     throw "Could not create R2 bucket $name - send the message above to Claude."
 }
 
+function Get-KVId($title) {
+    $list = npx wrangler kv namespace list 2>$null | Out-String | ConvertFrom-Json
+    ($list | Where-Object { $_.title -eq $title -or $_.title -like "*$title" } | Select-Object -First 1).id
+}
+function Ensure-KV($title) {
+    $id = Get-KVId $title
+    if (-not $id) { Step "Creating KV namespace $title"; npx wrangler kv namespace create $title | Out-Host; $id = Get-KVId $title }
+    else { Write-Host "KV namespace $title already exists" }
+    if (-not $id) { throw "Could not find the ID for KV namespace $title" }
+    return $id
+}
+
 $prodId    = Ensure-D1 "baked-by-erin"
 $previewId = Ensure-D1 "baked-by-erin-preview"
 Ensure-R2 "baked-by-erin-media"
 Ensure-R2 "baked-by-erin-preview-media"
+$sessionId        = Ensure-KV "baked-by-erin-session"
+$previewSessionId = Ensure-KV "baked-by-erin-preview-session"
 
-Step "Writing database IDs into wrangler.jsonc"
+Step "Writing database and KV IDs into wrangler.jsonc"
 $cfg = Get-Content wrangler.jsonc -Raw
 $cfg = $cfg.Replace("REPLACE_WITH_PROD_D1_ID", $prodId).Replace("REPLACE_WITH_PREVIEW_D1_ID", $previewId)
+$cfg = $cfg.Replace("REPLACE_WITH_SESSION_KV_ID", $sessionId).Replace("REPLACE_WITH_PREVIEW_SESSION_KV_ID", $previewSessionId)
 Set-Content wrangler.jsonc $cfg -NoNewline
 Write-Host "Production DB: $prodId"
 Write-Host "Preview DB:    $previewId"
+Write-Host "Session KV:    $sessionId"
 
 # 4. Build (catches problems before anything goes live)
 Step "Building the site"
