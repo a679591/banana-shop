@@ -2,7 +2,9 @@
 # Run from this folder in PowerShell:   powershell -ExecutionPolicy Bypass -File .\setup.ps1
 # Safe to re-run: anything that already exists is skipped.
 
-$ErrorActionPreference = "Stop"
+# "Continue" so Windows PowerShell doesn't treat wrangler's normal stderr output as a crash;
+# each step checks $LASTEXITCODE instead.
+$ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
@@ -18,7 +20,7 @@ if ($LASTEXITCODE -ne 0) { throw "pnpm install failed" }
 
 # 2. Cloudflare login (opens your browser the first time)
 Step "Checking Cloudflare login"
-npx wrangler whoami 2>&1 | Out-String | Tee-Object -Variable who | Out-Null
+$who = npx wrangler whoami 2>&1 | Out-String
 if ($who -match "not authenticated|You are not") { npx wrangler login }
 npx wrangler whoami
 
@@ -35,9 +37,15 @@ function Ensure-D1($name) {
     return $id
 }
 function Ensure-R2($name) {
-    $buckets = npx wrangler r2 bucket list 2>&1 | Out-String
-    if ($buckets -match "(?m)^\s*name:\s*$([regex]::Escape($name))\s*$") { Write-Host "R2 bucket $name already exists" }
-    else { Step "Creating R2 bucket $name"; npx wrangler r2 bucket create $name | Out-Host }
+    Step "Checking R2 bucket $name"
+    $out = npx wrangler r2 bucket create $name 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { Write-Host "Created R2 bucket $name"; return }
+    if ($out -match "already exists|10004") { Write-Host "R2 bucket $name already exists"; return }
+    Write-Host $out
+    if ($out -match "enable R2|10042") {
+        throw "R2 isn't turned on for this Cloudflare account yet. In the dashboard open R2 Object Storage, click to enable it (free tier), then re-run this script."
+    }
+    throw "Could not create R2 bucket $name - send the message above to Claude."
 }
 
 $prodId    = Ensure-D1 "baked-by-erin"
