@@ -1,7 +1,6 @@
 # Baked by Erin 🧁
 
-An EmDash CMS shop on Cloudflare Workers, running at **shop.bakedbyerin.com**
-while the current site stays on the `bakedbyerin` Pages project (bakedbyerin.com) — customers order
+An EmDash CMS shop on Cloudflare Workers at **bakedbyerin.com** — customers order
 online and pay after Erin confirms. Based on the `banana-shop` EmDash template.
 
 ## Stack
@@ -104,13 +103,18 @@ pass `--env` to wrangler afterwards.
 > `EMDASH_CATALOG_PLUGIN=1` (PowerShell: `$env:EMDASH_CATALOG_PLUGIN="1"; pnpm deploy`;
 > in Workers Builds, add it as a build variable).
 
-## Going live on bakedbyerin.com (later)
+## Going live on bakedbyerin.com
 
-When the shop is ready to replace the current site:
+`wrangler.jsonc` routes bakedbyerin.com, www.bakedbyerin.com and shop.bakedbyerin.com
+to this Worker. Old static-site URLs (`menu.html`, `contact.html`, …) redirect to the
+new pages (see `redirects` in `astro.config.mjs`).
 
-1. Dashboard → Workers & Pages → `bakedbyerin` (Pages) → Custom domains → remove `bakedbyerin.com` and `www.bakedbyerin.com`.
-2. In `wrangler.jsonc`, change `routes` to `bakedbyerin.com` and `www.bakedbyerin.com` (both `custom_domain: true`) and set `EMDASH_SITE_URL` to `https://bakedbyerin.com`.
-3. `pnpm deploy`. The old site stays reachable at bakedbyerin.pages.dev.
+First switch-over:
+
+1. Dashboard → Workers & Pages → `bakedbyerin` (Pages) → Custom domains → remove
+   `bakedbyerin.com` and `www.bakedbyerin.com`. (Optionally delete the Pages project
+   or turn off its automatic deployments.)
+2. `pnpm deploy`.
 
 ## Orders
 

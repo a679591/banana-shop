@@ -9,6 +9,16 @@ const catalogPlugin = process.env.EMDASH_CATALOG_PLUGIN === "1";
 // https://astro.build/config
 export default defineConfig({
 	output: "server",
+	// Old static-site addresses (bakedbyerin.com/menu.html etc.) → new pages, so existing links keep working.
+	redirects: {
+		"/index.html": "/",
+		"/menu.html": "/products",
+		"/seasonal_menu.html": "/products?category=seasonal",
+		"/passover_menu.html": "/products?category=passover",
+		"/contact.html": "/contact",
+		"/cart.html": "/order",
+		"/gallery.html": "/products",
+	},
 	adapter: cloudflare(),
 	image: {
 		layout: "constrained",

@@ -2,7 +2,7 @@
 	// Baked by Erin — EmDash site on Cloudflare Workers (D1 + R2).
 	//
 	// Production (main branch):  `pnpm build && wrangler deploy`
-	//   → https://shop.bakedbyerin.com (custom domain; zone must be on your Cloudflare account)
+	//   → https://bakedbyerin.com (+ www and shop.); zone must be on your Cloudflare account
 	// Previews (any other branch): `CLOUDFLARE_ENV=preview pnpm build && wrangler versions upload`
 	//   → https://<branch>-baked-by-erin-preview.<account-subdomain>.workers.dev
 	//   Separate Worker, D1 and R2 so previews never touch production orders.
@@ -18,10 +18,14 @@
 	// Astro Cloudflare build output (server + assets).
 	"assets": { "directory": "./dist" },
 
-	// Testing on a subdomain while the current site stays on the Pages project.
-	// To go live later: remove bakedbyerin.com + www from the Pages project's Custom domains,
-	// swap these routes to bakedbyerin.com / www.bakedbyerin.com, update EMDASH_SITE_URL, redeploy.
-	"routes": [{ "pattern": "shop.bakedbyerin.com", "custom_domain": true }],
+	// bakedbyerin.com is the main site; www and the old shop. subdomain keep working.
+	// Before the first deploy with these routes, remove bakedbyerin.com and www from the
+	// old "bakedbyerin" Pages project (Custom domains) or the deploy will fail.
+	"routes": [
+		{ "pattern": "bakedbyerin.com", "custom_domain": true },
+		{ "pattern": "www.bakedbyerin.com", "custom_domain": true },
+		{ "pattern": "shop.bakedbyerin.com", "custom_domain": true }
+	],
 	"workers_dev": false,
 	"preview_urls": false,
 
@@ -29,7 +33,7 @@
 		{
 			"binding": "DB",
 			"database_name": "baked-by-erin",
-			"database_id": "REPLACE_WITH_PROD_D1_ID"
+			"database_id": "81ea2a8b-650c-4a0a-9687-42d9e2ea54de"
 		}
 	],
 	"r2_buckets": [
@@ -39,8 +43,8 @@
 		}
 	],
 	// Astro session storage (logins). ID filled in by setup.ps1.
-	"kv_namespaces": [{ "binding": "SESSION", "id": "REPLACE_WITH_SESSION_KV_ID" }],
-	"vars": { "EMDASH_SITE_URL": "https://shop.bakedbyerin.com" },
+	"kv_namespaces": [{ "binding": "SESSION", "id": "3444a094a9614deaa53c2bbaaad68326" }],
+	"vars": { "EMDASH_SITE_URL": "https://bakedbyerin.com" },
 
 	// Scheduled publishing + maintenance sweep (1/min).
 	"triggers": { "crons": ["* * * * *"] },
@@ -61,7 +65,7 @@
 				{
 					"binding": "DB",
 					"database_name": "baked-by-erin-preview",
-					"database_id": "REPLACE_WITH_PREVIEW_D1_ID"
+					"database_id": "df9696f0-d109-4eae-b5ea-583468f11541"
 				}
 			],
 			"r2_buckets": [
@@ -70,7 +74,7 @@
 					"bucket_name": "baked-by-erin-preview-media"
 				}
 			],
-			"kv_namespaces": [{ "binding": "SESSION", "id": "REPLACE_WITH_PREVIEW_SESSION_KV_ID" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "a839d6f244d64a928d5a6a1bc45ee5ed" }],
 			"vars": {},
 			"triggers": { "crons": ["* * * * *"] },
 			// "worker_loaders": [{ "binding": "LOADER" }]
