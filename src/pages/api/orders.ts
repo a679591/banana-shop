@@ -12,6 +12,8 @@ import { withEmDashRuntime } from "emdash/middleware";
  */
 
 const DELIVERY_FEE = 10;
+// Orders need this many days' notice (order on Nov 1 → earliest Nov 4). Keep in sync with order/index.astro.
+const LEAD_DAYS = 3;
 
 export const POST: APIRoute = async ({ request }) => {
 	if (request.method !== "POST") {
@@ -45,7 +47,15 @@ export const POST: APIRoute = async ({ request }) => {
 	if (!customer_name) return json({ ok: false, error: "Your name is required." }, 400);
 	if (!customer_phone) return json({ ok: false, error: "A phone number is required so Erin can confirm your order." }, 400);
 	if (!pickup_date) return json({ ok: false, error: "Please choose a date." }, 400);
-	if (pickupMs < Date.now() - 36 * 60 * 60 * 1000) return json({ ok: false, error: "Please choose a date in the future." }, 400);
+	// Minimum notice, counted from today's date in Miami.
+	const todayMiami = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+	const earliest = new Date(`${todayMiami}T12:00:00Z`);
+	earliest.setUTCDate(earliest.getUTCDate() + LEAD_DAYS);
+	const earliestDate = earliest.toISOString().slice(0, 10);
+	if (requested_date < earliestDate) {
+		const nice = earliest.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
+		return json({ ok: false, error: `Orders need at least ${LEAD_DAYS} days' notice. The earliest available date is ${nice}.` }, 400);
+	}
 	if (!["pickup", "delivery"].includes(fulfillment)) return json({ ok: false, error: "Choose pickup or delivery." }, 400);
 	if (fulfillment === "delivery" && !delivery_address)
 		return json({ ok: false, error: "A delivery address is required for delivery." }, 400);

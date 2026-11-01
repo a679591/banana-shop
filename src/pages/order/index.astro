@@ -19,6 +19,8 @@ const catalog = products.map((p) => ({
 }));
 
 const DELIVERY_FEE = 10;
+// Orders need this many days' notice (order on Nov 1 → earliest Nov 4). Keep in sync with api/orders.ts.
+const LEAD_DAYS = 3;
 // Erin's existing Formspree form, so order emails keep arriving the way they do today.
 const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 ---
@@ -65,6 +67,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 
 			<label>Requested pickup / delivery date *
 				<input name="pickup_date" type="date" required />
+				<span class="hint" id="date-hint">Orders need at least {LEAD_DAYS} days' notice.</span>
 			</label>
 
 			<label>Notes (allergies, special requests, gift messages)
@@ -83,7 +86,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 
 <script type="application/json" id="catalog-data" set:html={JSON.stringify(catalog)}></script>
 
-<script is:inline define:vars={{ DELIVERY_FEE, FORMSPREE_URL }}>
+<script is:inline define:vars={{ DELIVERY_FEE, FORMSPREE_URL, LEAD_DAYS }}>
 	(function () {
 		var catalog = JSON.parse(document.getElementById("catalog-data").textContent || "[]");
 		var bySlug = {};
@@ -176,10 +179,16 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 
 		form.querySelectorAll('input[name="fulfillment"]').forEach(function (r) { r.addEventListener("change", render); });
 
-		// Earliest date: tomorrow.
+		// Earliest date: today (Miami time) + LEAD_DAYS. The server enforces the same rule.
 		var dateInput = form.querySelector('input[name="pickup_date"]');
-		var t = new Date(); t.setDate(t.getDate() + 1);
-		dateInput.min = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+		var todayMiami = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+		var earliest = new Date(todayMiami + "T12:00:00Z");
+		earliest.setUTCDate(earliest.getUTCDate() + LEAD_DAYS);
+		var minDate = earliest.toISOString().slice(0, 10);
+		dateInput.min = minDate;
+		document.getElementById("date-hint").textContent =
+			"Orders need at least " + LEAD_DAYS + " days' notice. Earliest available: " +
+			earliest.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }) + ".";
 
 		render();
 
@@ -194,6 +203,11 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 			if (!String(fd.get("customer_name") || "").trim()) missing.push("name");
 			if (!String(fd.get("customer_phone") || "").trim()) missing.push("phone");
 			if (!fd.get("pickup_date")) missing.push("date");
+			else if (String(fd.get("pickup_date")) < minDate) {
+				errEl.textContent = "Orders need at least " + LEAD_DAYS + " days' notice. Please choose " + dateInput.min.slice(5).replace("-", "/") + " or later.";
+				errEl.hidden = false;
+				return;
+			}
 			if (isDelivery() && !String(fd.get("delivery_address") || "").trim()) missing.push("delivery address");
 			if (missing.length) {
 				errEl.textContent = "Please fill in your " + missing.join(", ") + ".";
@@ -323,6 +337,7 @@ const FORMSPREE_URL = "https://formspree.io/f/xyknvwqq";
 	.choice legend { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; padding: 0; }
 	.radio { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; margin-bottom: 0.4rem; cursor: pointer; }
 	.radio input { accent-color: var(--brown); width: 18px; height: 18px; }
+	.hint { display: block; font-weight: 400; font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
 	.payment { background: var(--soft); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.9rem; }
 	.submit { width: 100%; }
 	.form-error { color: #b91c1c; margin: 0.75rem 0 0; font-weight: 600; }
